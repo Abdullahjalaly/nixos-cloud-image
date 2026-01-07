@@ -34,10 +34,10 @@ jobs:
           version: "1.11.2"
 
       - name: Initialize Packer
-        run: packer init .
+        run: packer init hetzner-nixos-incremental.pkr.hcl
 
       - name: Validate Packer config
-        run: packer validate .
+        run: packer validate hetzner-nixos-incremental.pkr.hcl
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
 
