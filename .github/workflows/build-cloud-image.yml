@@ -1,0 +1,434 @@
+name: Build NixOS Cloud Image (Free)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: 'Custom image name (optional)'
+        required: false
+        default: 'nixos-25.11-cloud'
+
+env:
+  IMAGE_NAME: ${{ github.event.inputs.image_name || 'nixos-25.11-cloud' }}
+
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-25.11
+
+      - name: Build NixOS cloud disk image
+        run: |
+          echo "Building universal NixOS cloud image..."
+          nix build .#diskImage --show-trace
+
+          # The EC2 AMI builder creates a raw disk image
+          IMAGE_PATH=$(readlink -f result)
+          echo "Built image at: $IMAGE_PATH"
+
+          # Find the actual image file
+          IMAGE_FILE=$(find $IMAGE_PATH -name "*.raw" -o -name "*.img" | head -1)
+          echo "Image file: $IMAGE_FILE"
+
+          # Get image size
+          IMAGE_SIZE=$(stat -c%s "$IMAGE_FILE")
+          IMAGE_SIZE_MB=$((IMAGE_SIZE / 1024 / 1024))
+          echo "Image size: ${IMAGE_SIZE_MB}MB"
+
+          echo "image_file=$IMAGE_FILE" >> $GITHUB_OUTPUT
+          echo "image_size_mb=$IMAGE_SIZE_MB" >> $GITHUB_OUTPUT
+        id: build
+
+      - name: Compress cloud image
+        run: |
+          echo "Compressing cloud image..."
+          cp ${{ steps.build.outputs.image_file }} nixos-25.11-cloud.img
+
+          # Compress with xz (best compression, widely supported)
+          xz -9 -T0 nixos-25.11-cloud.img
+
+          COMPRESSED_SIZE=$(stat -c%s "nixos-25.11-cloud.img.xz")
+          COMPRESSED_SIZE_MB=$((COMPRESSED_SIZE / 1024 / 1024))
+
+          echo "Compressed size: ${COMPRESSED_SIZE_MB}MB"
+          echo "compressed_size_mb=$COMPRESSED_SIZE_MB" >> $GITHUB_OUTPUT
+        id: compress
+
+      - name: Create GitHub Release with Cloud Image
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: cloud-${{ github.run_number }}
+          name: NixOS 25.11 Cloud Image - Build #${{ github.run_number }}
+          body: |
+            ## ☁️ NixOS 25.11 Universal Cloud Image
+
+            **Image Size**: ${{ steps.build.outputs.image_size_mb }}MB (raw)
+            **Compressed**: ${{ steps.compress.outputs.compressed_size_mb }}MB (xz)
+            **Build Date**: ${{ github.event.head_commit.timestamp }}
+            **Commit**: ${{ github.sha }}
+            **Build Cost**: $0.00 (FREE - built on GitHub runners)
+
+            ---
+
+            ### 🌍 Supported Cloud Providers
+
+            This image works on **any cloud provider** that accepts custom images:
+
+            ✅ **Hetzner Cloud** - Upload via API or console
+            ✅ **DigitalOcean** - Custom Images
+            ✅ **Vultr** - Bring Your Own ISO/Image
+            ✅ **Linode/Akamai** - Custom Images
+            ✅ **AWS EC2** - Import as AMI (convert with `qemu-img`)
+            ✅ **Google Cloud** - Import as custom image
+            ✅ **Azure** - VHD upload (convert format)
+            ✅ **OVH Cloud** - Custom images
+            ✅ **Scaleway** - Custom images
+            ✅ **Oracle Cloud** - Custom images
+            ✅ **OpenStack** - Glance image upload
+            ✅ **Proxmox VE** - Use directly as VM disk
+            ✅ **VMware ESXi** - Convert to VMDK
+            ✅ **KVM/libvirt** - Use raw image directly
+
+            ---
+
+            ### 🚀 Quick Deploy Examples
+
+            **Direct GitHub Release URL**:
+            ```
+            https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz
+            ```
+
+            <details>
+            <summary><b>🔷 Hetzner Cloud (CLI)</b></summary>
+
+            **Option 1: Direct from GitHub URL (no download needed!)**
+            ```bash
+            # Create image directly from GitHub release
+            hcloud image create \
+              --type raw \
+              --name nixos-25.11-cloud-${{ github.run_number }} \
+              --description "NixOS 25.11 cloud image build ${{ github.run_number }}" \
+              --url https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz \
+              --compression xz
+
+            # Deploy server (use image ID from response)
+            hcloud server create \
+              --type cx11 \
+              --image YOUR_IMAGE_ID \
+              --name nixos-server \
+              --location nbg1 \
+              --ssh-key YOUR_KEY
+            ```
+
+            **Option 2: Manual download**
+            ```bash
+            wget https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz
+            xz -d nixos-25.11-cloud.img.xz
+            hcloud image create --type raw --name nixos-25.11 --file nixos-25.11-cloud.img
+            ```
+            </details>
+
+            <details>
+            <summary><b>🔷 Hetzner Cloud (Terraform)</b></summary>
+
+            ```hcl
+            terraform {
+              required_providers {
+                hcloud = {
+                  source  = "hetznercloud/hcloud"
+                  version = "~> 1.45"
+                }
+              }
+            }
+
+            provider "hcloud" {
+              token = var.hcloud_token
+            }
+
+            # Create custom image from GitHub release
+            resource "hcloud_uploaded_image" "nixos" {
+              name        = "nixos-25.11-cloud-${{ github.run_number }}"
+              type        = "raw"
+              url         = "https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz"
+              compression = "xz"
+            }
+
+            # Deploy server using the image
+            resource "hcloud_server" "nixos_server" {
+              name        = "nixos-production"
+              server_type = "cx11"
+              location    = "nbg1"
+              image       = hcloud_uploaded_image.nixos.id
+
+              ssh_keys = [var.ssh_key_id]
+
+              labels = {
+                os      = "nixos"
+                version = "25.11"
+              }
+            }
+
+            output "server_ip" {
+              value = hcloud_server.nixos_server.ipv4_address
+            }
+            ```
+            </details>
+
+            <details>
+            <summary><b>🔷 DigitalOcean (Terraform)</b></summary>
+
+            ```hcl
+            terraform {
+              required_providers {
+                digitalocean = {
+                  source  = "digitalocean/digitalocean"
+                  version = "~> 2.0"
+                }
+              }
+            }
+
+            provider "digitalocean" {
+              token = var.do_token
+            }
+
+            # Create custom image from GitHub URL
+            resource "digitalocean_custom_image" "nixos" {
+              name         = "nixos-25.11-cloud-${{ github.run_number }}"
+              url          = "https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz"
+              distribution = "Unknown OS"
+              regions      = ["nyc3"]
+            }
+
+            # Create droplet from custom image
+            resource "digitalocean_droplet" "nixos" {
+              name     = "nixos-server"
+              size     = "s-1vcpu-1gb"
+              image    = digitalocean_custom_image.nixos.id
+              region   = "nyc3"
+              ssh_keys = [var.ssh_key_fingerprint]
+            }
+            ```
+            </details>
+
+            <details>
+            <summary><b>🔷 Proxmox VE (Terraform)</b></summary>
+
+            ```hcl
+            terraform {
+              required_providers {
+                proxmox = {
+                  source  = "telmate/proxmox"
+                  version = "~> 2.9"
+                }
+              }
+            }
+
+            # Download image locally first
+            resource "null_resource" "download_image" {
+              provisioner "local-exec" {
+                command = <<-EOT
+                  wget -O /tmp/nixos.img.xz https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz
+                  xz -d /tmp/nixos.img.xz
+                  qemu-img convert -f raw -O qcow2 /tmp/nixos.img /var/lib/vz/images/nixos-25.11.qcow2
+                EOT
+              }
+            }
+
+            # Create VM from downloaded image
+            resource "proxmox_vm_qemu" "nixos" {
+              name        = "nixos-server"
+              target_node = "pve"
+              clone       = "nixos-template"  # Create template first from image
+              cores       = 2
+              memory      = 2048
+              disk {
+                storage = "local-lvm"
+                size    = "20G"
+              }
+            }
+            ```
+            </details>
+
+            <details>
+            <summary><b>🔷 Vultr (CLI)</b></summary>
+
+            ```bash
+            # Direct from GitHub URL
+            vultr-cli snapshot create-url \
+              --url "https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz"
+
+            # Deploy instance from snapshot
+            vultr-cli instance create \
+              --snapshot SNAPSHOT_ID \
+              --region ewr \
+              --plan vc2-1c-1gb \
+              --label nixos-server
+            ```
+            </details>
+
+            <details>
+            <summary><b>🔷 AWS EC2 (Terraform)</b></summary>
+
+            ```hcl
+            # First, convert and upload to S3, then:
+            terraform {
+              required_providers {
+                aws = {
+                  source  = "hashicorp/aws"
+                  version = "~> 5.0"
+                }
+              }
+            }
+
+            # Import image from S3
+            resource "aws_ami" "nixos" {
+              name                = "nixos-25.11-cloud-${{ github.run_number }}"
+              virtualization_type = "hvm"
+              root_device_name    = "/dev/sda1"
+
+              ebs_block_device {
+                device_name = "/dev/sda1"
+                snapshot_id = aws_ebs_snapshot.nixos.id
+                volume_size = 20
+              }
+            }
+
+            # Launch EC2 instance
+            resource "aws_instance" "nixos" {
+              ami           = aws_ami.nixos.id
+              instance_type = "t3.micro"
+              key_name      = var.key_name
+
+              tags = {
+                Name = "nixos-server"
+              }
+            }
+            ```
+            </details>
+
+            <details>
+            <summary><b>🔷 Local KVM/libvirt (Terraform)</b></summary>
+
+            ```hcl
+            terraform {
+              required_providers {
+                libvirt = {
+                  source  = "dmacvicar/libvirt"
+                  version = "~> 0.7"
+                }
+              }
+            }
+
+            provider "libvirt" {
+              uri = "qemu:///system"
+            }
+
+            # Download and prepare image
+            resource "null_resource" "download_image" {
+              provisioner "local-exec" {
+                command = <<-EOT
+                  wget -O /tmp/nixos.img.xz https://github.com/${{ github.repository }}/releases/download/cloud-${{ github.run_number }}/nixos-25.11-cloud.img.xz
+                  xz -d /tmp/nixos.img.xz
+                  qemu-img convert -f raw -O qcow2 /tmp/nixos.img /var/lib/libvirt/images/nixos-25.11.qcow2
+                EOT
+              }
+            }
+
+            # Create volume from image
+            resource "libvirt_volume" "nixos" {
+              name   = "nixos-25.11"
+              source = "/var/lib/libvirt/images/nixos-25.11.qcow2"
+              depends_on = [null_resource.download_image]
+            }
+
+            # Create VM
+            resource "libvirt_domain" "nixos" {
+              name   = "nixos-server"
+              memory = "2048"
+              vcpu   = 2
+
+              disk {
+                volume_id = libvirt_volume.nixos.id
+              }
+
+              network_interface {
+                network_name = "default"
+              }
+            }
+            ```
+            </details>
+
+            ---
+
+            ### ✨ Features
+
+            - ✅ **Universal**: Works on any cloud/hypervisor
+            - ✅ **Small**: ${{ steps.compress.outputs.compressed_size_mb }}MB compressed
+            - ✅ **Auto-upgrade**: Downloads latest NixOS 25.11 on first boot
+            - ✅ **Smart swap**: 2-16GB based on RAM
+            - ✅ **Cloud-init**: Full metadata support
+            - ✅ **Auto-resize**: Expands to any disk size
+            - ✅ **FREE to build**: GitHub runners (no cost)
+
+            ### 📦 What's Included
+
+            **Bootstrap (in image):**
+            - Linux kernel 6.12+ with virtio drivers
+            - Nix package manager with flakes
+            - curl for downloads
+            - cloud-init for provisioning
+            - OpenSSH server
+
+            **Downloads on first boot:**
+            - Latest NixOS 25.11 channel (~450MB)
+            - All package updates from binary cache
+
+            ### 🔧 First Boot Process
+
+            1. Boots minimal NixOS system
+            2. Cloud-init provisions hostname, SSH keys
+            3. Downloads latest NixOS 25.11 channel
+            4. Creates swap (2-16GB based on RAM)
+            5. Resizes filesystem to full disk
+            6. Ready! Use `nix-shell -p vim git htop`
+
+            ---
+
+            ### 📋 Technical Details
+
+            - **NixOS Version**: 25.11 (Xantusia)
+            - **Kernel**: 6.12.63
+            - **Architecture**: x86_64
+            - **Format**: Raw disk image (.img)
+            - **Partition Table**: MBR (maximum compatibility)
+            - **Build Tool**: Nix + GitHub Actions
+            - **Compression**: xz -9
+
+            ### 🆚 vs Hetzner Snapshot
+
+            | Feature | Cloud Image (This) | Hetzner Snapshot |
+            |---------|-------------------|------------------|
+            | **Portability** | Any cloud/hypervisor | Hetzner only |
+            | **Build Cost** | FREE | $0.013 |
+            | **Storage** | FREE (GitHub) | €0.018/month |
+            | **Deployment** | Download + upload | Reference ID |
+            | **Use Case** | Public distribution | Personal use |
+
+            ### 🐛 Issues?
+
+            Report issues at: https://github.com/${{ github.repository }}/issues
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          files: |
+            nixos-25.11-cloud.img.xz
