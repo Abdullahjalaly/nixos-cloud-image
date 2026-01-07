@@ -1,0 +1,22 @@
+# Packer output
+*.box
+packer_cache/
+crash.log
+manifest.json
+
+# Secrets
+*.tfvars
+!*.tfvars.example
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

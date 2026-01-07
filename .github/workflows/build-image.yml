@@ -1,0 +1,183 @@
+name: Build NixOS Hetzner Image
+
+on:
+  schedule:
+    # Build weekly on Sundays at 3 AM UTC (like official NixOS AMIs)
+    - cron: '0 3 * * 0'
+  push:
+    branches: [main]
+    paths:
+      - '**.nix'
+      - '**.pkr.hcl'
+      - 'scripts/**'
+      - '.github/workflows/build-image.yml'
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: 'Custom image name (optional)'
+        required: false
+        default: 'nixos-25.11-netboot'
+
+env:
+  IMAGE_NAME: ${{ github.event.inputs.image_name || 'nixos-25.11-netboot' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: "1.11.2"
+
+      - name: Initialize Packer
+        run: packer init .
+
+      - name: Validate Packer config
+        run: packer validate .
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+
+      - name: Build NixOS image
+        run: |
+          packer build \
+            -var "image_name=${IMAGE_NAME}-$(date +%Y%m%d-%H%M)" \
+            hetzner-nixos.pkr.hcl
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+
+      - name: Get snapshot details
+        id: snapshot
+        run: |
+          # Wait a moment for snapshot to be fully available
+          sleep 5
+
+          # Query Hetzner API for latest snapshot
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.HCLOUD_TOKEN }}" \
+            "https://api.hetzner.cloud/v1/images?type=snapshot&sort=created:desc")
+
+          SNAPSHOT_ID=$(echo "$RESPONSE" | jq -r '.images[0].id')
+          SNAPSHOT_NAME=$(echo "$RESPONSE" | jq -r '.images[0].description')
+          SNAPSHOT_SIZE=$(echo "$RESPONSE" | jq -r '.images[0].image_size')
+
+          echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "snapshot_name=$SNAPSHOT_NAME" >> $GITHUB_OUTPUT
+          echo "snapshot_size=$SNAPSHOT_SIZE" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: NixOS 25.11 Netboot - Build #${{ github.run_number }}
+          body: |
+            ## 🎉 NixOS 25.11 Netboot Bootstrap Image
+
+            **Hetzner Cloud Image ID**: `${{ steps.snapshot.outputs.snapshot_id }}`
+            **Image Size**: ${{ steps.snapshot.outputs.snapshot_size }} GB
+            **Build Date**: ${{ github.event.head_commit.timestamp }}
+            **Commit**: ${{ github.sha }}
+
+            ---
+
+            ### 🚀 Quick Deploy
+
+            **Using hcloud CLI:**
+            ```bash
+            hcloud server create \
+              --type cx11 \
+              --image ${{ steps.snapshot.outputs.snapshot_id }} \
+              --name my-nixos-server \
+              --location nbg1 \
+              --ssh-key YOUR_KEY
+            ```
+
+            **Using Terraform:**
+            ```hcl
+            resource "hcloud_server" "nixos" {
+              name        = "my-nixos-server"
+              image       = "${{ steps.snapshot.outputs.snapshot_id }}"
+              server_type = "cx11"
+              location    = "nbg1"
+            }
+            ```
+
+            ---
+
+            ### ✨ Features
+
+            - ✅ **Size**: ${{ steps.snapshot.outputs.snapshot_size }} GB compressed
+            - ✅ **Auto-upgrade**: Downloads latest NixOS stable on first boot
+            - ✅ **Smart swap**: 2-16GB based on instance RAM
+            - ✅ **Cloud-init**: Full metadata support
+            - ✅ **Auto-resize**: Expands to any disk size
+
+            ### 📦 What's Included
+
+            **Bootstrap (in image):**
+            - Linux kernel 6.12+ with minimal virtio drivers
+            - Nix package manager with flakes
+            - curl for downloads
+            - cloud-init
+            - OpenSSH server
+
+            **Downloads on first boot:**
+            - Latest NixOS 25.11 channel (~450MB)
+            - Updates to all packages
+
+            ### 🔧 First Boot Process
+
+            When you deploy this image:
+            1. Boots minimal system
+            2. Cloud-init auto-detects latest NixOS stable
+            3. Downloads channel from binary cache
+            4. Creates swap (2GB-16GB based on RAM)
+            5. Resizes filesystem to full disk
+            6. Ready to use with `nix-shell -p vim git htop`
+
+            ---
+
+            ### 📋 Image Details
+
+            - **NixOS Version**: 25.11 (Xantusia)
+            - **Kernel**: 6.12.63
+            - **Architecture**: x86_64
+            - **Cloud Provider**: Hetzner Cloud
+            - **Build Tool**: Packer ${{ steps.packer.outputs.version }}
+
+            ### 🐛 Issues?
+
+            Report issues at: https://github.com/${{ github.repository }}/issues
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+
+      - name: Update README with latest image ID
+        if: github.ref == 'refs/heads/main'
+        run: |
+          sed -i "s/IMAGE_ID=[0-9]*/IMAGE_ID=${{ steps.snapshot.outputs.snapshot_id }}/" README.md
+          sed -i "s/image = \"[0-9]*\"/image = \"${{ steps.snapshot.outputs.snapshot_id }}\"/" README.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: update image ID to ${{ steps.snapshot.outputs.snapshot_id }}" || exit 0
+          git push
+
+      - name: Clean up old snapshots (keep last 3)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Get all snapshots created by this automation
+          SNAPSHOTS=$(curl -s -H "Authorization: Bearer ${{ secrets.HCLOUD_TOKEN }}" \
+            "https://api.hetzner.cloud/v1/images?type=snapshot&sort=created:desc" | \
+            jq -r '.images[] | select(.labels.created_by == "packer") | .id')
+
+          # Keep the 3 most recent, delete the rest
+          echo "$SNAPSHOTS" | tail -n +4 | while read id; do
+            echo "Deleting old snapshot: $id"
+            curl -X DELETE -H "Authorization: Bearer ${{ secrets.HCLOUD_TOKEN }}" \
+              "https://api.hetzner.cloud/v1/images/$id"
+          done
