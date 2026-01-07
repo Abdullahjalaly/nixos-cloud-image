@@ -76,14 +76,22 @@ build {
     destination = "/tmp/cloud-init-99-custom.yaml"
   }
 
-  # Quick update: just copy new configs and rebuild
+  # Quick update: ensure channels, copy configs, rebuild
   provisioner "shell" {
     inline = [
       "echo '=== Incremental NixOS Update ==='",
+      # Always set up nixpkgs channel (netboot image has skeleton but not actual channel data)
+      "echo 'Setting up nixpkgs channel...'",
+      "nix-channel --add https://nixos.org/channels/nixos-25.11 nixos",
+      "nix-channel --update",
+      "echo 'Copying configuration files...'",
       "cp /tmp/configuration.nix /etc/nixos/configuration.nix",
       "cp /tmp/cloud-init-99-custom.yaml /etc/cloud/cloud.cfg.d/99-custom.yaml",
+      "echo 'Running nixos-rebuild...'",
       "nixos-rebuild boot",  # Rebuild for next boot
+      "echo 'Cleaning up...'",
       "nix-collect-garbage -d",  # Cleanup
+      "echo '=== Build Complete ==='",
     ]
   }
 
