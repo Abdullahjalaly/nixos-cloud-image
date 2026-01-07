@@ -1,15 +1,16 @@
 # Build Methods Comparison
 
-Both methods produce identical NixOS images, but use different approaches.
+This repository supports three build methods for creating NixOS Hetzner Cloud images.
 
 ## TL;DR
 
-| Method | Best For | Tested? | Reliability |
-|--------|----------|---------|-------------|
-| **Packer** | First-time users, "just works" | ✅ Proven | ⭐⭐⭐⭐⭐ |
-| **GitHub Runners** | Advanced users, zero cost | ⚠️ Complex | ⭐⭐⭐⭐☆ |
+| Method | Speed | Cost/Build | Tested? | Reliability |
+|--------|-------|------------|---------|-------------|
+| **Packer Incremental** (Default) | ~6 min | $0.013 | ✅ Proven | ⭐⭐⭐⭐⭐ |
+| **Packer From-Scratch** | ~25 min | $0.05 | ✅ Proven | ⭐⭐⭐⭐⭐ |
+| **GitHub Runners** | ~15 min | $0.00 | ⚠️ Complex | ⭐⭐⭐⭐☆ |
 
-## Method 1: Packer (Recommended for Most Users)
+## Method 1: Packer Incremental (Default - Recommended)
 
 ### How it Works
 
@@ -18,49 +19,121 @@ GitHub Actions
   ↓
 Starts Hetzner cx33 server ($0.0080/hour)
   ↓
-Boots into rescue mode (live Linux)
+Boots from existing NixOS snapshot (347588142)
   ↓
-Partitions disk, formats ext4
+SSH into running system
   ↓
-Downloads NixOS ISO
+Update nixpkgs channel (~2 min)
   ↓
-Runs nixos-install (15 minutes)
+Copy new configuration.nix
+  ↓
+Run nixos-rebuild boot (~2 min)
   ↓
 Shuts down, creates snapshot
   ↓
 Deletes server
   ↓
-Snapshot ready! (~$0.05 total cost)
+Snapshot ready! (~$0.013 total cost, 6 min)
 ```
+
+### Key Insight: Why Incremental Works for NixOS
+
+NixOS's declarative configuration means **incremental = from-scratch** in terms of final result:
+
+- `configuration.nix` **fully defines** the system state
+- NixOS rebuilds only what changed (thanks to Nix's determinism)
+- Result: Same final system, **4x faster**, **75% cheaper**
+
+The base snapshot (347588142) is just a bootstrap - the final image is determined entirely by your `configuration.nix`.
 
 ### Pros
 
-✅ **"It just works"** - Most reliable method
+✅ **Fast** - 6 minutes total (vs 25 min from-scratch)
+✅ **Cheap** - $0.013 per build (vs $0.05 from-scratch)
 ✅ **Proven** - Used by many NixOS/Hetzner projects
 ✅ **Realistic** - Builds on actual Hetzner hardware
 ✅ **Easy debugging** - SSH into server during build
-✅ **Complete test** - Tests full install process
+✅ **Same result** - NixOS determinism ensures identical output to from-scratch
 
 ### Cons
 
-⚠️ **Costs money** - €0.002-0.01 per build (~€0.50/year for weekly builds)
-⚠️ **Slower** - ~20 minutes per build
+⚠️ **Costs money** - $0.013 per build (~$0.68/year for weekly builds)
 ⚠️ **Needs Hetzner** - Can't build offline/locally easily
+⚠️ **Requires base snapshot** - Needs existing NixOS image (provided in repo)
 
 ### Tested How?
 
 ```bash
 # Real Hetzner server (cx33)
-# ↓ Install NixOS from scratch
-# ↓ If it boots, it works
-# ↓ Snapshot = Known-good system
+# ↓ Boot from known-good NixOS snapshot
+# ↓ Run nixos-rebuild with new config
+# ↓ If it succeeds, new snapshot is valid
+# ↓ Snapshot = Declaratively-defined system
 ```
 
-**Result**: If Packer build succeeds, the image **definitely works** on Hetzner.
+**Result**: If Packer incremental build succeeds, the image **definitely works** on Hetzner. Successfully tested with snapshot **347610961**.
 
 ---
 
-## Method 2: GitHub Runners (Free, Advanced)
+## Method 2: Packer From-Scratch (Base Snapshot Creation)
+
+### How it Works
+
+```
+GitHub Actions
+  ↓
+Starts Hetzner cx33 server ($0.0080/hour)
+  ↓
+Boots into Ubuntu rescue mode
+  ↓
+Partitions disk, formats ext4
+  ↓
+Downloads NixOS minimal ISO
+  ↓
+Runs nixos-install (20 minutes)
+  ↓
+Shuts down, creates snapshot
+  ↓
+Deletes server
+  ↓
+Snapshot ready! (~$0.05 total cost, 25 min)
+```
+
+### When to Use
+
+Use from-scratch builds **only** when:
+
+1. ✅ Creating the **initial base snapshot** for incremental builds
+2. ✅ Testing major NixOS version upgrades (25.11 → 26.05)
+3. ✅ Verifying the build process end-to-end
+
+For regular builds, use **incremental** instead (Method 1).
+
+### Pros
+
+✅ **Complete validation** - Tests entire install process
+✅ **No dependencies** - Doesn't need existing snapshot
+✅ **Educational** - Shows full NixOS installation
+
+### Cons
+
+⚠️ **Slow** - 25 minutes per build
+⚠️ **Expensive** - $0.05 per build (4x cost of incremental)
+⚠️ **Unnecessary** - NixOS determinism makes this redundant for most builds
+
+### Configuration
+
+To use from-scratch instead of incremental:
+
+```bash
+# Edit .github/workflows/build-image.yml
+# Change: hetzner-nixos-incremental.pkr.hcl
+# To: hetzner-nixos.pkr.hcl
+```
+
+---
+
+## Method 3: GitHub Runners (Free, Advanced)
 
 ### How it Works
 
@@ -116,10 +189,16 @@ Snapshot ready! ($0 cost)
 
 ### Reliability
 
-**Packer: ⭐⭐⭐⭐⭐**
-- Tests actual boot process
-- Runs on Hetzner hardware
+**Packer Incremental: ⭐⭐⭐⭐⭐**
+- Boots actual NixOS on Hetzner hardware
+- Tests nixos-rebuild process
 - If build succeeds, image definitely works
+- Used successfully in this repo (snapshot 347610961)
+
+**Packer From-Scratch: ⭐⭐⭐⭐⭐**
+- Tests complete installation process
+- Runs on Hetzner hardware
+- Most thorough validation
 - Used by: [hcloud-packer-templates](https://github.com/jktr/hcloud-packer-templates), [nixos-hcloud-packer](https://github.com/selaux/nixos-hcloud-packer)
 
 **GitHub Runners: ⭐⭐⭐⭐☆**
@@ -131,22 +210,22 @@ Snapshot ready! ($0 cost)
 
 ### Cost Analysis
 
-| Build Frequency | Packer Cost/Year | GitHub Cost/Year |
-|-----------------|------------------|------------------|
-| Weekly | €2.60 | €0.00 |
-| Daily | €18.25 | €0.00 |
-| Per-commit | Varies | €0.00 |
+| Build Frequency | Incremental/Year | From-Scratch/Year | GitHub Runners/Year |
+|-----------------|------------------|-------------------|---------------------|
+| Weekly | $0.68 | $2.60 | $0.00 |
+| Daily | $4.75 | $18.25 | $0.00 |
+| Per-commit | Varies | Varies | $0.00 |
 
-**Note**: €2.60/year for weekly builds is negligible for most use cases.
+**Note**: $0.68/year for weekly incremental builds is negligible.
 
 ### Build Time
 
-| Stage | Packer | GitHub Runners |
-|-------|--------|----------------|
-| Setup | 2 min | 3 min (install Nix) |
-| Build | 15 min (nixos-install) | 7 min (nix build) |
-| Upload/Snapshot | 3 min | 5 min (upload) |
-| **Total** | **~20 min** | **~15 min** |
+| Stage | Incremental | From-Scratch | GitHub Runners |
+|-------|-------------|--------------|----------------|
+| Setup | 2 min | 2 min | 3 min (install Nix) |
+| Build | 3 min (rebuild) | 20 min (nixos-install) | 7 min (nix build) |
+| Snapshot | 1 min | 3 min | 5 min (upload) |
+| **Total** | **~6 min** | **~25 min** | **~15 min** |
 
 ### Debugging
 
@@ -175,13 +254,20 @@ nix build .#nixosConfigurations.hetzner.config.system.build.raw \
 
 ## Which Should You Use?
 
-### Use Packer if:
+### Use Packer Incremental if:
 
-1. ✅ This is your **first time** building NixOS images
-2. ✅ You want **"it just works"** reliability
-3. ✅ You value **proven, tested** methods
-4. ✅ You're okay with **€2.60/year** cost
-5. ✅ You might need to **debug** builds
+1. ✅ You want the **default recommended method** (you're already using it!)
+2. ✅ You want **fast builds** (6 min)
+3. ✅ You want **"it just works"** reliability
+4. ✅ You're okay with **$0.68/year** cost for weekly builds
+5. ✅ You value **proven, tested** methods
+
+### Use Packer From-Scratch if:
+
+1. ✅ You're creating a **new base snapshot** for incremental builds
+2. ✅ You're **upgrading NixOS versions** (25.11 → 26.05)
+3. ✅ You want to **understand the full build process**
+4. ✅ You're **debugging installation issues**
 
 ### Use GitHub Runners if:
 
@@ -193,25 +279,43 @@ nix build .#nixosConfigurations.hetzner.config.system.build.raw \
 
 ### Recommended Path
 
+**Default (What you're already doing):**
 ```
-Start with Packer → Verify it works → Switch to GitHub Runners (if desired)
+Packer Incremental → Fast, cheap, proven
 ```
 
-**Why?**
-- Packer proves the image works on Hetzner
-- Once you have a known-good config, GitHub runners are safe
-- Best of both worlds: proven config + free builds
+**For experimentation:**
+```
+Packer Incremental → Test locally → GitHub Runners (if desired)
+```
+
+**Why Incremental is Default:**
+- 4x faster than from-scratch (6 min vs 25 min)
+- 75% cheaper ($0.013 vs $0.05 per build)
+- Same reliability (NixOS is declarative)
+- Same final result (Nix determinism)
 
 ---
 
 ## Testing Status
 
-### Packer Method
+### Packer Incremental Method (Default)
+
+✅ **Fully tested in this repo**
+✅ Successfully built snapshot `347610961`
+✅ Build time: 5m49s (as expected)
+✅ Channel setup works correctly
+✅ Proven to work on Hetzner Cloud (cx33 server type)
+✅ Cost per build: $0.013
+
+### Packer From-Scratch Method
 
 ✅ **Fully tested in this repo**
 ✅ Used by multiple public projects
 ✅ Proven to work on Hetzner Cloud
-✅ Tested by building image `347588142`
+✅ Built base snapshot `347588142`
+✅ Build time: ~25 minutes
+✅ Cost per build: $0.05
 
 ### GitHub Runners Method
 
@@ -232,37 +336,40 @@ Start with Packer → Verify it works → Switch to GitHub Runners (if desired)
 
 ## Migration Path
 
-### From Packer → GitHub Runners
+### Already Using Incremental (You Are!)
 
-Once your Packer builds work:
+The repository is already configured to use the optimal method. No changes needed unless you want to experiment.
 
-1. Keep Packer workflow enabled (safety net)
-2. Enable GitHub runner workflow
-3. Compare both images (should be identical)
-4. Test GitHub-built image thoroughly
-5. Once confident, disable Packer workflow
+### To Switch to From-Scratch
 
-### Both at Once
+If you want to create a new base snapshot:
 
-You can run **both workflows**:
+```bash
+# Edit .github/workflows/build-image.yml
+# Line 37: Change from hetzner-nixos-incremental.pkr.hcl
+# To: hetzner-nixos.pkr.hcl
 
-```yaml
-# Packer: Runs weekly (safety/validation)
-# GitHub Runners: Runs on every push (rapid iteration)
+# Commit and push - workflow will run from-scratch build
 ```
 
-This gives you:
-- Packer as "ground truth"
-- GitHub runners for fast development
-- Best of both worlds
+### To Add GitHub Runners
+
+If you want free builds:
+
+1. Keep incremental workflow enabled (safety net)
+2. Add GitHub runner workflow (see docs/GITHUB-RUNNERS.md)
+3. Compare both images (should be identical)
+4. Test GitHub-built image thoroughly
+5. Once confident, use runners for daily builds
 
 ---
 
 ## Conclusion
 
-**Packer** = Safe, proven, costs pennies
+**Packer Incremental (Default)** = Fast, cheap, proven ⭐⭐⭐⭐⭐
+**Packer From-Scratch** = For base snapshot creation only
 **GitHub Runners** = Free, fast, needs validation
 
-**Our recommendation**: Start with Packer, switch to GitHub runners after validating.
+**Our recommendation**: You're already using the optimal method (Packer Incremental).
 
-Both methods produce the **same NixOS image** - the difference is how and where it's built.
+All three methods produce functionally identical NixOS images thanks to Nix's declarative nature - the difference is build time, cost, and thoroughness of validation.
