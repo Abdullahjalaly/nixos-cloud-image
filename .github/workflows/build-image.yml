@@ -20,6 +20,9 @@ on:
 env:
   IMAGE_NAME: ${{ github.event.inputs.image_name || 'nixos-25.11-netboot' }}
 
+permissions:
+  contents: write  # Required for creating releases and pushing commits
+
 jobs:
   build:
     runs-on: ubuntu-latest
