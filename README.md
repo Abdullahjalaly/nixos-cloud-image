@@ -1,6 +1,6 @@
-# NixOS Hetzner Cloud Image Builder
+# NixOS Cloud Image Builder
 
-Automated builds of minimal, netboot-style NixOS images for Hetzner Cloud.
+Automated builds of minimal, netboot-style NixOS images for **any cloud provider**. Works on Hetzner, DigitalOcean, AWS, Vultr, Proxmox, and more!
 
 ## 🎯 Features
 
@@ -65,8 +65,8 @@ resource "hcloud_server" "nixos" {
 
 ```bash
 # Clone this repo
-git clone https://github.com/YOUR_USERNAME/nixos-hetzner-image.git
-cd nixos-hetzner-image
+git clone https://github.com/YOUR_USERNAME/nixos-cloud-image.git
+cd nixos-cloud-image
 
 # Set your Hetzner token
 export HCLOUD_TOKEN="your-token-here"
@@ -83,7 +83,7 @@ make clean     # Clean up old snapshots
 
 # Option 3: Using Packer directly
 packer init .
-packer build hetzner-nixos.pkr.hcl
+packer build nixos-cloud-from-scratch.pkr.hcl
 ```
 
 **Available Make targets:**
@@ -166,7 +166,7 @@ This repository offers **two build methods**, both automated via GitHub Actions:
 
 1. **Push this repository to GitHub**
    ```bash
-   gh repo create nixos-hetzner-image --public --source=. --remote=origin --push
+   gh repo create nixos-cloud-image --public --source=. --remote=origin --push
    ```
 
 2. **Enable GitHub Actions** (Settings → Actions → General)

@@ -30,20 +30,20 @@ jobs:
           version: "1.11.2"
 
       - name: Initialize Packer
-        run: packer init hetzner-nixos-incremental.pkr.hcl
+        run: packer init nixos-cloud-incremental.pkr.hcl
 
       - name: Validate Packer config
-        run: packer validate hetzner-nixos-incremental.pkr.hcl
+        run: packer validate nixos-cloud-incremental.pkr.hcl
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
 
       - name: Build NixOS image (incremental - 3 min)
         run: |
           # Use incremental build (3 min) - NixOS determinism ensures same result
-          # Only use hetzner-nixos.pkr.hcl (25 min) for first-time base creation
+          # Only use nixos-cloud-from-scratch.pkr.hcl (25 min) for first-time base creation
           packer build \
             -var "image_name=${IMAGE_NAME}-$(date +%Y%m%d-%H%M)" \
-            hetzner-nixos-incremental.pkr.hcl
+            nixos-cloud-incremental.pkr.hcl
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
 

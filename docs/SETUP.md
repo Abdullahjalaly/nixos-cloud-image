@@ -15,17 +15,17 @@ GitHub Actions **will not work** immediately after pushing. You need to:
 ### 1. Push Repository to GitHub
 
 ```bash
-cd /Users/mhugo/code/nixos-hetzner-image
+cd /path/to/nixos-cloud-image
 
 # Option A: Using GitHub CLI (recommended)
-gh repo create nixos-hetzner-image \
+gh repo create nixos-cloud-image \
   --public \
   --source=. \
   --remote=origin \
   --push
 
 # Option B: Manual
-git remote add origin git@github.com:YOUR_USERNAME/nixos-hetzner-image.git
+git remote add origin git@github.com:YOUR_USERNAME/nixos-cloud-image.git
 git push -u origin main
 ```
 
@@ -33,7 +33,7 @@ git push -u origin main
 
 **By default, Actions might be disabled for new repos!**
 
-1. Go to your repo on GitHub: `https://github.com/YOUR_USERNAME/nixos-hetzner-image`
+1. Go to your repo on GitHub: `https://github.com/YOUR_USERNAME/nixos-cloud-image`
 2. Click **Settings** tab
 3. In left sidebar, click **Actions** → **General**
 4. Under "Actions permissions":
@@ -214,7 +214,7 @@ cd /Users/mhugo/code/nixos-hetzner-image
 
 # Initialize and build
 packer init .
-packer build hetzner-nixos.pkr.hcl
+packer build nixos-cloud-from-scratch.pkr.hcl
 
 # Or use Make
 make build

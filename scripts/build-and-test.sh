@@ -63,7 +63,7 @@ build_image() {
 
     # Build the image
     log "Starting Packer build (this takes ~15-20 minutes)..."
-    packer build -var "image_name=${IMAGE_NAME}" hetzner-nixos.pkr.hcl
+    packer build -var "image_name=${IMAGE_NAME}" nixos-cloud-from-scratch.pkr.hcl
 
     log "✓ Packer build complete"
 }
@@ -206,7 +206,7 @@ EOF
 }
 
 main() {
-    log "NixOS Hetzner Image Builder - Automated Build & Test"
+    log "NixOS Cloud Image Builder - Automated Build & Test"
     log ""
 
     check_requirements

@@ -127,8 +127,8 @@ To use from-scratch instead of incremental:
 
 ```bash
 # Edit .github/workflows/build-image.yml
-# Change: hetzner-nixos-incremental.pkr.hcl
-# To: hetzner-nixos.pkr.hcl
+# Change: nixos-cloud-incremental.pkr.hcl
+# To: nixos-cloud-from-scratch.pkr.hcl
 ```
 
 ---
@@ -346,8 +346,8 @@ If you want to create a new base snapshot:
 
 ```bash
 # Edit .github/workflows/build-image.yml
-# Line 37: Change from hetzner-nixos-incremental.pkr.hcl
-# To: hetzner-nixos.pkr.hcl
+# Line 37: Change from nixos-cloud-incremental.pkr.hcl
+# To: nixos-cloud-from-scratch.pkr.hcl
 
 # Commit and push - workflow will run from-scratch build
 ```

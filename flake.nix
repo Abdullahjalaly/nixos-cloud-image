@@ -1,5 +1,5 @@
 {
-  description = "NixOS Hetzner Cloud Image Builder";
+  description = "NixOS Cloud Image Builder - Universal images for any cloud provider";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";

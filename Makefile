@@ -1,10 +1,10 @@
-# Makefile for NixOS Hetzner Image Builder
+# Makefile for NixOS Cloud Image Builder
 
 .PHONY: help init validate build test clean
 
 # Default target
 help:
-	@echo "NixOS Hetzner Image Builder"
+	@echo "NixOS Cloud Image Builder"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make init       - Initialize Packer plugins"
@@ -35,7 +35,7 @@ validate: init
 # Build the image
 build: validate
 	@echo "Building NixOS image..."
-	@packer build hetzner-nixos.pkr.hcl
+	@packer build nixos-cloud-from-scratch.pkr.hcl
 	@echo "✓ Build complete"
 
 # Test the latest snapshot
