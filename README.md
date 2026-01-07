@@ -118,18 +118,75 @@ Edit `configuration.nix` to add your packages, services, or configuration:
 
 ## 🤖 Automated Builds
 
-This repository uses GitHub Actions to build images weekly (Sundays at 3 AM UTC).
+This repository offers **two build methods**, both automated via GitHub Actions:
 
-### Setup automated builds
+### Method 1: GitHub Runners (Recommended) ⭐
 
-1. Fork this repository
-2. Add `HCLOUD_TOKEN` as a repository secret
-3. Enable GitHub Actions
-4. Images build automatically and appear in Releases
+**Builds the image directly on GitHub runners - 100% FREE!**
 
-### Manual trigger
+- ✅ No Hetzner server costs during build
+- ✅ Faster (parallel builds)
+- ✅ More control over image content
+- ✅ Can build locally without Hetzner API
 
-Go to Actions → Build NixOS Hetzner Image → Run workflow
+**How it works:**
+1. GitHub runner builds raw NixOS disk image with Nix
+2. Compresses with xz (1-2 GB)
+3. Uploads to Hetzner Cloud with `hcloud-upload-image`
+4. Creates snapshot
+5. Publishes to GitHub Releases
+
+**Workflow:** `.github/workflows/build-with-nix.yml`
+
+---
+
+### Method 2: Packer on Hetzner (Traditional)
+
+**Uses Packer to build on actual Hetzner servers**
+
+- ⚠️ Costs ~€0.01-0.05 per build (server rental during build)
+- ⚠️ Slower (serial build process)
+- ✅ More "realistic" (actual hardware)
+- ✅ Easier debugging (SSH into build server)
+
+**How it works:**
+1. Packer spins up Ubuntu server on Hetzner
+2. Boots into rescue mode
+3. Installs NixOS from scratch
+4. Snapshots the disk
+5. Deletes build server
+
+**Workflow:** `.github/workflows/build-image.yml`
+
+---
+
+### Setup Automated Builds
+
+1. **Fork this repository**
+
+2. **Add secrets** (Settings → Secrets → Actions):
+   ```
+   HCLOUD_TOKEN = your_hetzner_api_token
+   ```
+
+3. **Enable GitHub Actions**
+   - Go to Actions tab → Enable workflows
+
+4. **Choose your workflow**:
+   - **Recommended**: Enable `build-with-nix.yml` (free, faster)
+   - **Alternative**: Enable `build-image.yml` (costs ~€0.01/build)
+
+5. **Builds run automatically**:
+   - Weekly on Sundays at 3 AM UTC
+   - On push to configuration files
+   - Manual trigger anytime
+
+### Manual Trigger
+
+- Go to Actions tab
+- Select "Build NixOS Image (GitHub Runners)" **OR** "Build NixOS Hetzner Image"
+- Click "Run workflow"
+- Choose NixOS version (optional)
 
 ## 📊 Comparison
 
